@@ -111,7 +111,7 @@ class SimpleEnvironment(object):
             speed = 1
             l_dot = 0.2 # = r
             l = self.resolution[0]
-            dt = l/l_dot;
+            dt = l/l_dot
 
             # Move Forward
             control = Control(speed, speed, dt)
@@ -119,12 +119,12 @@ class SimpleEnvironment(object):
             self.actions[idx].append(Action(control, footprint))
 
             # Move Backward
-            control = Control(-speed, -speed, dt)
-            footprint = self.GenerateFootprintFromControl(start_config, control)
-            self.actions[idx].append(Action(control, footprint))         
+            #control = Control(-speed, -speed, dt)
+            #footprint = self.GenerateFootprintFromControl(start_config, control)
+            #self.actions[idx].append(Action(control, footprint))         
 
             th_dot = 0.8 # 2 * r / L
-            th = math.pi/2
+            th = math.pi/4
             dt = th/th_dot
 
             # Turn Left
@@ -191,7 +191,7 @@ class SimpleEnvironment(object):
     def IsInCollision(self, node_id):
         orig_config = self.robot.GetTransform()
         location = self.discrete_env.NodeIdToConfiguration(node_id)
-        config = orig_config
+        config = self.robot.GetTransform()
         config[:2,3] = location[:2]
         config[0, 0] = math.cos(location[2])
         config[0, 1] = -1 * math.sin(location[2])
@@ -214,3 +214,46 @@ class SimpleEnvironment(object):
             if config[idx] < self.lower_limits[idx] or config[idx] > self.upper_limits[idx]:
                 return False
         return True
+
+    def InitializePlot(self, goal_config):
+        self.fig = pl.figure()
+        pl.xlim([self.lower_limits[0], self.upper_limits[0]])
+        pl.ylim([self.lower_limits[1], self.upper_limits[1]])
+        pl.plot(goal_config[0], goal_config[1], 'gx')
+
+        # Show all obstacles in environment
+        for b in self.robot.GetEnv().GetBodies():
+            if b.GetName() == self.robot.GetName():
+                continue
+            bb = b.ComputeAABB()
+            pl.plot([bb.pos()[0] - bb.extents()[0],
+                     bb.pos()[0] + bb.extents()[0],
+                     bb.pos()[0] + bb.extents()[0],
+                     bb.pos()[0] - bb.extents()[0],
+                     bb.pos()[0] - bb.extents()[0]],
+                    [bb.pos()[1] - bb.extents()[1],
+                     bb.pos()[1] - bb.extents()[1],
+                     bb.pos()[1] + bb.extents()[1],
+                     bb.pos()[1] + bb.extents()[1],
+                     bb.pos()[1] - bb.extents()[1]], 'r')
+                    
+                     
+        pl.ion()
+        pl.show()
+        
+    def PlotEdge(self, sconfig, econfig):
+        pl.plot([sconfig[0], econfig[0]],
+                [sconfig[1], econfig[1]],
+                'k.-', linewidth=2.5)
+        pl.draw()
+
+    def PlotAll(self,plan):
+        lines=[]
+        for i in range(0,numpy.size(plan,0)-1):
+            start = plan[i]
+            end = plan[i+1]
+            temp = [start,end]
+            pl.plot([start[0], end[0]],
+                    [start[1], end[1]],
+                    'k.-', linewidth=2.5)
+        pl.draw()

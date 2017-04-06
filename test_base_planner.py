@@ -43,6 +43,10 @@ if __name__ == "__main__":
     base_env = SimpleEnvironment(herb_base, resolution)
 
     raw_input('Move robot to start config and press enter')
+    #import IPython
+    #IPython.embed()
+
+    #sid = base_env.discrete_env.ConfigurationToNodeId([-1.212695, 0.20981799, 0])
     sid = base_env.discrete_env.ConfigurationToNodeId(herb_base.GetCurrentConfiguration())
     start_config = base_env.discrete_env.NodeIdToConfiguration(sid)
     herb_base.SetCurrentConfiguration(start_config)
@@ -53,6 +57,10 @@ if __name__ == "__main__":
     
 
     raw_input('Move robot to goal config and press enter')
+    #import IPython
+    #IPython.embed()
+
+    #gid = base_env.discrete_env.ConfigurationToNodeId([0, 0, 0])
     gid = base_env.discrete_env.ConfigurationToNodeId(herb_base.GetCurrentConfiguration())
     goal_config = base_env.discrete_env.NodeIdToConfiguration(gid)
     herb_base.SetCurrentConfiguration(goal_config)
@@ -71,10 +79,10 @@ if __name__ == "__main__":
     traj = herb_base.ConvertPlanToTrajectory(plan)
 
     raw_input('Press any key to play trajectory')
+    
+    #import IPython
+    #IPython.embed()
+
     herb_base.ExecuteTrajectory(traj)
 
     raw_input('Press any key to quit.')
-
-    
-    
-    

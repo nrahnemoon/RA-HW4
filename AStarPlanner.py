@@ -34,12 +34,10 @@ class AStarPlanner(object):
         f_start = g_start + h_start
         heapq.heappush(openlist, (f_start,startID))
 
-
         IDandG[startID] = g_start
 
-
         ########## plot
-        #self.planning_env.InitializePlot(goal_config)
+        self.planning_env.InitializePlot(goal_config)
         ############
 
         while openlist:
@@ -60,9 +58,9 @@ class AStarPlanner(object):
 
                 successorAction = successors[i]
                 numFootprints = len(successorAction.footprint)
-                successorConfig = successorAction.footprint[numFootprints - 1]
+                successorConfig = list(successorAction.footprint[numFootprints - 1])
                 successorConfig[0] += currConfig[0] # Footprints only contain the relative changes in config
-                successorConfig[0] += currConfig[1] # So need to add to parent for x and y to get absolute config
+                successorConfig[1] += currConfig[1] # So need to add to parent for x and y to get absolute config
                 successorNodeId = self.planning_env.discrete_env.ConfigurationToNodeId(successorConfig)
 
                 if (successorNodeId ==-1 or not self.planning_env.IsInLimits(successorNodeId) or self.planning_env.IsInCollision(successorNodeId)):
@@ -73,7 +71,7 @@ class AStarPlanner(object):
                 if successorNodeId not in IDandG:
                     tentative_h = self.planning_env.ComputeHeuristicCost(successorNodeId, goalID)
                     tentative_f = tentative_g + tentative_h
-                    heapq.heappush(openlist,(tentative_f, successorNodeId))
+                    heapq.heappush(openlist,(tentative_h, successorNodeId))
                     IDandG[successorNodeId] = tentative_g
 
                 elif tentative_g >= self.planning_env.ComputeDistance(startID, successorNodeId):
@@ -85,7 +83,7 @@ class AStarPlanner(object):
                 temp_start_config = self.planning_env.discrete_env.NodeIdToConfiguration(currentID)
                 temp_end_config = self.planning_env.discrete_env.NodeIdToConfiguration(successorNodeId)
                 ########### plot
-                #self.planning_env.PlotEdge(temp_start_config,temp_end_config)
+                self.planning_env.PlotEdge(temp_start_config, temp_end_config)
                 ###########
 
         planID = []
@@ -94,9 +92,7 @@ class AStarPlanner(object):
         search_index = goalID
         while startID not in planID:
             planID.append(search_index)
-            if search_index!=startID:
-                print "Plan actions length = "
-                print len(planActions)
+            if search_index != startID:
                 planActions.append(camewith[search_index])
                 search_index = camefrom[search_index]
 
@@ -112,6 +108,7 @@ class AStarPlanner(object):
         print "Time Used"
         print used_time
         print "Plan length: "+str(self.Plan_Length(plan))
+        print "Num actions: "+str(len(planActions))
         return planActions
 
     def Plan_Length (self,plan): 
