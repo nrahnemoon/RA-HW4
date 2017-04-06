@@ -1,6 +1,9 @@
 import numpy, openravepy
 import pylab as pl
 from DiscreteEnvironment import DiscreteEnvironment
+import math
+import scipy
+import scipy.spatial
 
 class Control(object):
     def __init__(self, omega_left, omega_right, duration):
@@ -19,8 +22,8 @@ class SimpleEnvironment(object):
         self.herb = herb
         self.robot = herb.robot
         self.boundary_limits = [[-5., -5., -numpy.pi], [5., 5., numpy.pi]]
-        lower_limits, upper_limits = self.boundary_limits
-        self.discrete_env = DiscreteEnvironment(resolution, lower_limits, upper_limits)
+        self.lower_limits, self.upper_limits = self.boundary_limits
+        self.discrete_env = DiscreteEnvironment(resolution, self.lower_limits, self.upper_limits)
 
         self.resolution = resolution
         self.ConstructActions()
@@ -33,7 +36,7 @@ class SimpleEnvironment(object):
         dt = control.dt
 
         # Initialize the footprint
-        config = start_config.copy()
+        config = list(start_config) # Copy
         footprint = [numpy.array([0., 0., config[2]])]
         timecount = 0.0
         while timecount < dt:
@@ -60,7 +63,8 @@ class SimpleEnvironment(object):
         # Add one more config that snaps the last point in the footprint to the center of the cell
         nid = self.discrete_env.ConfigurationToNodeId(config)
         snapped_config = self.discrete_env.NodeIdToConfiguration(nid)
-        snapped_config[:2] -= start_config[:2]
+        snapped_config[0] -= start_config[0]
+        snapped_config[1] -= start_config[1]
         footprint.append(snapped_config)
 
         return footprint
@@ -101,12 +105,38 @@ class SimpleEnvironment(object):
             # TODO: Here you will construct a set of actions
             #  to be used during the planning process
             #
-            control = [1, 1, 1]
-            footprint = self.GenerateFootprintFromControl(start_config, control)
-            self.actions[idx] = Action(control, footprint)
 
-         
-            
+            self.actions[idx] = []
+
+            speed = 1
+            l_dot = 0.2 # = r
+            l = self.resolution[0]
+            dt = l/l_dot;
+
+            # Move Forward
+            control = Control(speed, speed, dt)
+            footprint = self.GenerateFootprintFromControl(start_config, control)
+            self.actions[idx].append(Action(control, footprint))
+
+            # Move Backward
+            control = Control(-speed, -speed, dt)
+            footprint = self.GenerateFootprintFromControl(start_config, control)
+            self.actions[idx].append(Action(control, footprint))         
+
+            th_dot = 0.8 # 2 * r / L
+            th = math.pi/2
+            dt = th/th_dot
+
+            # Turn Left
+            control = Control(-speed, speed, dt)
+            footprint = self.GenerateFootprintFromControl(start_config, control)
+            self.actions[idx].append(Action(control, footprint))
+
+             # Turn Right
+            control = Control(speed, -speed, dt)
+            footprint = self.GenerateFootprintFromControl(start_config, control)
+            self.actions[idx].append(Action(control, footprint))
+
 
     def GetSuccessors(self, node_id):
 
@@ -117,20 +147,14 @@ class SimpleEnvironment(object):
         #  and return a list of node_ids and controls that represent the neighboring
         #  nodes
         
-        node = self.discrete_env.NodeIdToGridCoord(node_id)
-        for i in range(0, numpy.size(node,0)):
-            node_add = list(node)
-            node_add[i] = node_add[i] + 1
-            node_add_id = self.discrete_env.GridCoordToNodeId(node_add)
-            if (node_add_id != -1 and self.IsInLimits(node_add_id)==True and self.IsInCollision(node_add_id)!=True):
-                successors.append(node_add_id)
-        for j in range(0,numpy.size(node,0)):
-            node_minus = list(node)
-            node_minus[j] = node_minus[j]-1
-            node_minus_id = self.discrete_env.GridCoordToNodeId(node_minus)
-            if (node_minus_id != -1 and self.IsInLimits(node_minus_id) == True and self.IsInCollision(node_minus_id) != True):
-                successors.append(node_minus_id)
-        
+        gridCoord = self.discrete_env.NodeIdToGridCoord(node_id)
+        config = self.discrete_env.NodeIdToConfiguration(node_id)
+
+        for action in self.actions[gridCoord[2]]:
+            # Footprint was based on 0,0,th config, so need to regenerate for current config
+            footprint = self.GenerateFootprintFromControl(config, action.control) 
+            successors.append(Action(action.control, footprint))
+
         return successors
 
     def ComputeDistance(self, start_id, end_id):
@@ -167,8 +191,13 @@ class SimpleEnvironment(object):
     def IsInCollision(self, node_id):
         orig_config = self.robot.GetTransform()
         location = self.discrete_env.NodeIdToConfiguration(node_id)
-        config =orig_config
-        config[:2,3]=location
+        config = orig_config
+        config[:2,3] = location[:2]
+        config[0, 0] = math.cos(location[2])
+        config[0, 1] = -1 * math.sin(location[2])
+        config[1, 0] = math.sin(location[2])
+        config[1, 1] = math.cos(location[2])
+
         env = self.robot.GetEnv()
         with env:
             self.robot.SetTransform(config)   
