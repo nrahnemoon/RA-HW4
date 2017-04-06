@@ -27,7 +27,7 @@ class GraspPlanner(object):
         # Order the grasps
         self.grasps = self.gmodel.grasps
         self.graspindices = self.gmodel.graspindices
-        self.order_grasps()
+        self.OrderGrasps()
 
         # Generate the Inverse Reachability model
         self.irmodel = openravepy.databases.inversereachability.InverseReachabilityModel(self.robot)
@@ -117,7 +117,7 @@ class GraspPlanner(object):
         task_manipulation = openravepy.interfaces.TaskManipulation(self.robot)
         task_manipultion.CloseFingers()
     
-    def order_grasps(self):
+    def OrderGrasps(self):
     	self.orderedGrasps = self.grasps.copy()
 
     	# Define metrics (1. Minimum singular value, 2. Ratio of sminimum and maximum singular values, 3. Volume of convex hull)
@@ -127,7 +127,7 @@ class GraspPlanner(object):
 
     	# Rate each grasp
     	for grasp in orderedGrasps:
-    		rating = self.eval_grasp(grasp)
+    		rating = self.EvaluateGrasp(grasp)
     		SVs.append(rating[0])
     		Ratios.append(rating[1])
     		Volumes.append(rating[2])
@@ -151,7 +151,7 @@ class GraspPlanner(object):
         order = order[::-1]
         self.orderedGrasps = self.orderedGrasps[order]
 
-	def eval_grasp(self, grasp):
+	def EvaluateGrasp(self, grasp):
 		with self.robot:
 			try:
 				contacts, finalconfig, mindist, volume = self.gmodel.testGrasp(grasp = grasp, translate = True, forceclosure = False)
