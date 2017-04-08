@@ -10,8 +10,6 @@ class HerbEnvironment(object):
         self.herb = herb
         self.robot = herb.robot
         self.lower_limits, self.upper_limits = self.robot.GetActiveDOFLimits()
-        #import IPython
-        #IPython.embed()
         self.discrete_env = DiscreteEnvironmentArm(resolution, self.lower_limits, self.upper_limits)
         self.env1 = self.robot.GetEnv()
         # account for the fact that snapping to the middle of the grid cell may put us over our
@@ -85,7 +83,6 @@ class HerbEnvironment(object):
         start_grid = self.discrete_env.NodeIdToGridCoord(start_id)
         end_grid = self.discrete_env.NodeIdToGridCoord(end_id)
 
-
         #dist = numpy.linalg.norm(start_config-end_config)
         dist = scipy.spatial.distance.cityblock(start_grid,end_grid)
         return dist
@@ -102,8 +99,6 @@ class HerbEnvironment(object):
         start_grid = self.discrete_env.NodeIdToGridCoord(start_id)
         goal_grid = self.discrete_env.NodeIdToGridCoord(goal_id)
         cost = scipy.spatial.distance.cityblock(start_grid,goal_grid)
-
-
         
         return cost
 
@@ -124,36 +119,63 @@ class HerbEnvironment(object):
 
         return numpy.array(config)
 
-    def Extend(self, start_config, end_config):
+    # def Extend(self, start_config, end_config):
         
-        # TODO: Implement a function which attempts to extend from 
-        # a start configuration to a goal configuration
-        num_dof = len(self.robot.GetActiveDOFIndices())
-        steps = 25
+    #     # TODO: Implement a function which attempts to extend from 
+    #     # a start configuration to a goal configuration
+    #     num_dof = len(self.robot.GetActiveDOFIndices())
+    #     steps = 25
 
-        if(start_config == None):
-            return None
-        # Generate interpolations (joint by joint?)
-        JointSteps = numpy.transpose(numpy.array([start_config] * steps));
-        #import IPython
-        #IPython.embed()
-        for dim in range(num_dof):
-            JointSteps[dim] = numpy.linspace(start_config[dim], end_config[dim], steps);
+    #     if(start_config == None):
+    #         return None
+    #     # Generate interpolations (joint by joint?)
+    #     JointSteps = numpy.transpose(numpy.array([start_config] * steps));
+    #     #import IPython
+    #     #IPython.embed()
+    #     for dim in range(num_dof):
+    #         JointSteps[dim] = numpy.linspace(start_config[dim], end_config[dim], steps);
 
-        for i in range(steps):
-            self.robot.SetActiveDOFValues(JointSteps[:,i]);
+    #     for i in range(steps):
+    #         self.robot.SetActiveDOFValues(JointSteps[:,i]);
             
-            # Check collision
-            for body in self.robot.GetEnv().GetBodies():
-                if ((body.GetName() != self.robot.GetName() and
-                    self.robot.GetEnv().CheckCollision(self.robot, body)) or
-                    self.robot.CheckSelfCollision()):
-                    # Check first step
-                    if (i == 0): 
-                        return None
-                    else:
-                        #JointSteps[dim] = [JointSteps[dim,i-1]] * steps
-                        return None#end_config[:] = JointSteps[:,i-1]
+    #         # Check collision
+    #         for body in self.robot.GetEnv().GetBodies():
+    #             if ((body.GetName() != self.robot.GetName() and
+    #                 self.robot.GetEnv().CheckCollision(self.robot, body)) or
+    #                 self.robot.CheckSelfCollision()):
+    #                 # Check first step
+    #                 if (i == 0): 
+    #                     return None
+    #                 else:
+    #                     #JointSteps[dim] = [JointSteps[dim,i-1]] * steps
+    #                     return None#end_config[:] = JointSteps[:,i-1]
         
-        # No collision detected 
-        return numpy.array(end_config)
+    #     # No collision detected 
+    #     return numpy.array(end_config)
+
+    def Extend(self, start_config, end_config):
+
+        if self.CheckForCollisions(start_config, end_config) == False:
+            return end_config
+        
+        else:
+            return []
+
+    def CheckForCollisions(self, start, end):
+
+        if numpy.sqrt(numpy.sum((end - start)**2)) < 0.4:
+            return False
+
+        else:
+            mid = (start + end) / 2
+            midFloat = mid.tolist()
+            self.robot.SetActiveDOFValues(midFloat)
+
+            if self.robot.GetEnv().CheckCollision(self.robot, self.robot.GetEnv().GetBodies()[1]) == True or self.robot.CheckCollision():
+                return True
+
+            else:
+                left = self.CheckForCollisions(start, mid)
+                right = self.CheckForCollisions(mid, end)
+
+                return left|right
