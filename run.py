@@ -3,12 +3,15 @@
 import argparse, numpy, openravepy, time
 
 from HerbRobot import HerbRobot
-from HerbEnvironment import HerbEnvironment
+from HerbEnvironment_test import HerbEnvironment
 from SimpleRobot import SimpleRobot
 from SimpleEnvironment import SimpleEnvironment
 from GraspPlanner import GraspPlanner
 from AStarPlanner import AStarPlanner
 # TODO: Import the applicable RRTPlanner
+#from RRTConnectPlanner import RRTConnectPlanner
+from HeuristicRRTPlanner import HeuristicRRTPlanner
+from RRTConnectPlanner_test import RRTConnectPlanner
 
 if __name__ == "__main__":
     
@@ -71,16 +74,19 @@ if __name__ == "__main__":
     # Create environments for planning the arm and base
     resolution = [args.hres, args.hres, args.tres]
     herb = HerbRobot(env, robot, args.manip)
-    arm_env = HerbEnvironment(herb)
     herb_base = SimpleRobot(env, robot)
     base_env = SimpleEnvironment(herb_base, resolution)
+    arm_env = HerbEnvironment(herb, base_env.discrete_env)
 
     base_planner = AStarPlanner(base_env, visualize = False)
     arm_planner = None
     # TODO: Here initialize your arm planner
+    #arm_planner = HeuristicRRTPlanner(arm_env, visualize = False)
+    arm_planner = RRTConnectPlanner(arm_env, visualize = False)
   
     # add a table and move the robot into place
     table = env.ReadKinBodyXMLFile('models/objects/table.kinbody.xml')
+    table.SetName('table1')
     env.Add(table)
     
     table_pose = numpy.array([[ 0, 0, -1, 0.7], 
@@ -112,7 +118,3 @@ if __name__ == "__main__":
 
     import IPython
     IPython.embed()
-
-
-        
-    

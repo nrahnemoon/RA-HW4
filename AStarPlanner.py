@@ -42,6 +42,7 @@ class AStarPlanner(object):
 
         while openlist:
             current = heapq.heappop(openlist)
+            currentDistToGoal = current[0]
             currentID = current[1]
             current_g = IDandG[currentID]
 
@@ -49,7 +50,7 @@ class AStarPlanner(object):
                 break
 
             currConfig = self.planning_env.discrete_env.NodeIdToConfiguration(currentID)
-            successors = self.planning_env.GetSuccessors(currentID)
+            successors = self.planning_env.GetSuccessors(currentID, currentDistToGoal)
 
             closedlist.append(currentID)
 

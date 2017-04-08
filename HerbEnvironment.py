@@ -1,33 +1,115 @@
-import numpy 
-import time
+import numpy
+import scipy
+import scipy.spatial
+from DiscreteEnvironmentArm import DiscreteEnvironmentArm
+
 class HerbEnvironment(object):
     
-    def __init__(self, herb):
+    def __init__(self, herb, resolution):
+        
+        self.herb = herb
         self.robot = herb.robot
+        self.lower_limits, self.upper_limits = self.robot.GetActiveDOFLimits()
+        #import IPython
+        #IPython.embed()
+        self.discrete_env = DiscreteEnvironmentArm(resolution, self.lower_limits, self.upper_limits)
+        self.env1 = self.robot.GetEnv()
+        # account for the fact that snapping to the middle of the grid cell may put us over our
+        #  upper limit
+        upper_coord = [x - 1 for x in self.discrete_env.num_cells]
+        upper_config = self.discrete_env.GridCoordToConfiguration(upper_coord)
+        for idx in range(len(self.discrete_env.num_cells)):
+            self.discrete_env.num_cells[idx] -= 1
 
         # add a table and move the robot into place
         table = self.robot.GetEnv().ReadKinBodyXMLFile('models/objects/table.kinbody.xml')
+        
         self.robot.GetEnv().Add(table)
 
-        table_pose = numpy.array([[ 0, 0, -1, 0.6], 
+        table_pose = numpy.array([[ 0, 0, -1, 0.7], 
                                   [-1, 0,  0, 0], 
                                   [ 0, 1,  0, 0], 
                                   [ 0, 0,  0, 1]])
         table.SetTransform(table_pose)
-
+        
         # set the camera
         camera_pose = numpy.array([[ 0.3259757 ,  0.31990565, -0.88960678,  2.84039211],
                                    [ 0.94516159, -0.0901412 ,  0.31391738, -0.87847549],
                                    [ 0.02023372, -0.9431516 , -0.33174637,  1.61502194],
                                    [ 0.        ,  0.        ,  0.        ,  1.        ]])
         self.robot.GetEnv().GetViewer().SetCamera(camera_pose)
+    
+    def GetSuccessors(self, node_id):
+
+        # TODO: Here you will implement a function that looks
+        #  up the configuration associated with the particular node_id
+        #  and return a list of node_ids that represent the neighboring
+        #  nodes
+
+        successors = []
+        node_grid = self.discrete_env.NodeIdToGridCoord(node_id)
+        for i in xrange(0,self.discrete_env.dimension):
+            if node_grid[i]+1<=self.discrete_env.num_cells[i]:
+                node_grid_temp = list(node_grid)
+                node_grid_temp[i]+=1;
+                temp_config = self.discrete_env.GridCoordToConfiguration(node_grid_temp)
+                with self.env1:  
+                    self.robot.SetDOFValues(temp_config, self.robot.GetActiveDOFIndices())
+                testcollision = self.env1.CheckCollision(self.robot)
+                if self.env1.CheckCollision(self.robot)==False:
+                    node_ID_temp = self.discrete_env.GridCoordToNodeId(node_grid_temp)
+                    successors.append(node_ID_temp)
+
+
+            if node_grid[i]-1>=0:
+                node_grid_temp = list(node_grid)
+                node_grid_temp[i]-=1
+                temp_config = self.discrete_env.GridCoordToConfiguration(node_grid_temp)
+                with self.env1:  
+                    self.robot.SetDOFValues(temp_config, self.robot.GetActiveDOFIndices())
+                if self.env1.CheckCollision(self.robot)==False:
+                    node_ID_temp = self.discrete_env.GridCoordToNodeId(node_grid_temp)
+                    successors.append(node_ID_temp)
+
+        return successors
+
+
+    def ComputeDistance(self, start_id, end_id):
+        # TODO: Here you will implement a function that 
+        # computes the distance between the configurations given
+        # by the two node ids
+
+        dist = 0
+        #start_config = self.discrete_env.NodeIdToConfiguration(start_id)
+        #end_config = self.discrete_env.NodeIdToConfiguration(end_id)
+        start_grid = self.discrete_env.NodeIdToGridCoord(start_id)
+        end_grid = self.discrete_env.NodeIdToGridCoord(end_id)
+
+
+        #dist = numpy.linalg.norm(start_config-end_config)
+        dist = scipy.spatial.distance.cityblock(start_grid,end_grid)
+        return dist
+
+    def ComputeHeuristicCost(self, start_id, goal_id):
+        # TODO: Here you will implement a function that 
+        # computes the heuristic cost between the configurations
+        # given by the two node ids
         
-        # goal sampling probability
-        self.p = 0.0
+        cost = 0
+        # start_config = self.discrete_env.NodeIdToConfiguration(start_id)
+        # end_config = self.discrete_env.NodeIdToConfiguration(end_id)
+        # cost = numpy.linalg.norm(start_config-end_config)
+        start_grid = self.discrete_env.NodeIdToGridCoord(start_id)
+        goal_grid = self.discrete_env.NodeIdToGridCoord(goal_id)
+        cost = scipy.spatial.distance.cityblock(start_grid,goal_grid)
+
+
+        
+        return cost
 
     def SetGoalParameters(self, goal_config, p = 0.2):
-        self.goal_config = goal_config
-        self.p = p
+            self.goal_config = goal_config
+            self.p = p
         
 
     def GenerateRandomConfiguration(self):
@@ -41,15 +123,6 @@ class HerbEnvironment(object):
             config[dim] = numpy.random.uniform(low=lower_limits[dim], high=upper_limits[dim]);
 
         return numpy.array(config)
-
-
-    
-    def ComputeDistance(self, start_config, end_config):
-        
-        # TODO: Implement a function which computes the distance between two configurations
-
-        return numpy.linalg.norm(numpy.array(start_config) - numpy.array(end_config));
-
 
     def Extend(self, start_config, end_config):
         
@@ -84,31 +157,3 @@ class HerbEnvironment(object):
         
         # No collision detected 
         return numpy.array(end_config)
-        
-    def ShortenPath(self, path, timeout=5.0):
-        
-        # 
-        # TODO: Implement a function which performs path shortening
-        #  on the given path.  Terminate the shortening after the 
-        #  given timout (in seconds).
-        #
-        initTime = time.time()
-        while(time.time()-initTime<timeout):
-	    ind = 1
-	    while(ind < len(path)-1):
-                start_config = path[ind-1]
-                final_config = path[ind+1]
-                config = self.Extend(start_config,final_config)
-                
-                
-		if config != None:
-		    same_bool = 1
-                    for i in range(len(config)):
-                        if config[i]!=final_config[i]:
-                            same_bool = 0
-                    if same_bool ==1:
-                        del path[ind]
-	        ind = ind + 1
-                
-            
-        return path

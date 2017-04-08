@@ -32,15 +32,16 @@ if __name__ == "__main__":
     table = env.ReadKinBodyXMLFile('models/objects/table.kinbody.xml')
     env.Add(table)
     
-    table_pose = numpy.array([[ 0, 0, -1, 0.7], 
-                              [-1, 0,  0, 0], 
-                              [ 0, 1,  0, 0], 
+    table_pose = numpy.array([[ 0, 0, -1, 0.7],
+                              [-1, 0,  0, 0],
+                              [ 0, 1,  0, 0],
                               [ 0, 0,  0, 1]])
     table.SetTransform(table_pose)
 
     resolution = [0.1, 0.1, numpy.pi/4.]
     herb_base = SimpleRobot(env, robot)
     base_env = SimpleEnvironment(herb_base, resolution)
+    base_env.PlotActionFootprints(0)
 
     raw_input('Move robot to start config and press enter')
     #import IPython

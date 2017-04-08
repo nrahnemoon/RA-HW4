@@ -31,11 +31,11 @@ class RRTConnectPlanner(object):
         print "goalConfig = [%.2f, %.2f]" %(goal_config[0], goal_config[1])
         disc = True;
         while (disc):
-            if(random.random() < 0.95):
+            if(random.random() < 0.5):
                 desConfig = self.planning_env.GenerateRandomConfiguration();
             else:
                 desConfig = goal_config;
-            expansions+=1
+            expansions += 1
             [nearID, nearConfig] = ftree.GetNearestVertex(desConfig);            
             extension = self.planning_env.Extend(nearConfig, desConfig)
             if (extension != None):

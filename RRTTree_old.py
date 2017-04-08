@@ -15,10 +15,7 @@ class RRTTree(object):
     def GetNearestVertex(self, config):
         
         dists = []
-        #configNodeID = self.planning_env.discrete_env.ConfigurationToNodeId(config)
         for v in self.vertices:
-            #vNodeID = self.planning_env.discrete_env.ConfigurationToNodeId(v)
-            #dists.append(self.planning_env.ComputeDistance(configNodeID, vNodeID))
             dists.append(self.planning_env.ComputeDistance(config, v))
 
         vid, vdist = min(enumerate(dists), key=operator.itemgetter(1))

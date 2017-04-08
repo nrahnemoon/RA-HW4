@@ -92,6 +92,7 @@ class SimpleEnvironment(object):
         # Actions is a dictionary that maps orientation of the robot to
         #  an action set
         self.actions = dict()
+        self.goalActions = dict()
               
         wc = [0., 0., 0.]
         grid_coordinate = self.discrete_env.ConfigurationToGridCoord(wc)
@@ -99,6 +100,7 @@ class SimpleEnvironment(object):
         # Iterate through each possible starting orientation
         for idx in range(int(self.discrete_env.num_cells[2])):
             self.actions[idx] = []
+            self.goalActions[idx] = []
             grid_coordinate[2] = idx
             start_config = self.discrete_env.GridCoordToConfiguration(grid_coordinate)
 
@@ -108,37 +110,58 @@ class SimpleEnvironment(object):
 
             self.actions[idx] = []
 
+            scaleFactor = 5
             speed = 1
-            l_dot = 0.2 # = r
-            l = self.resolution[0]
+            l_dot = 0.25 # = r
+            l = self.resolution[0] * scaleFactor
+            goalL = self.resolution[0]
             dt = l/l_dot
+            goalDt = goalL/l_dot
 
             # Move Forward
             control = Control(speed, speed, dt)
             footprint = self.GenerateFootprintFromControl(start_config, control)
             self.actions[idx].append(Action(control, footprint))
 
-            # Move Backward
-            #control = Control(-speed, -speed, dt)
-            #footprint = self.GenerateFootprintFromControl(start_config, control)
-            #self.actions[idx].append(Action(control, footprint))         
 
-            th_dot = 0.8 # 2 * r / L
-            th = math.pi/4
+            goalControl = Control(speed, speed, goalDt)
+            footprint = self.GenerateFootprintFromControl(start_config, goalControl)
+            self.goalActions[idx].append(Action(goalControl, footprint))
+
+            # Move Backward
+            control = Control(-speed, -speed, dt)
+            footprint = self.GenerateFootprintFromControl(start_config, control)
+            self.actions[idx].append(Action(control, footprint))         
+
+            goalControl = Control(-speed, -speed, goalDt)
+            footprint = self.GenerateFootprintFromControl(start_config, goalControl)
+            self.goalActions[idx].append(Action(goalControl, footprint))
+
+            th_dot = 1.0 # 2 * r / L
+            th = (math.pi/2)
+            goalTh = self.resolution[2]
             dt = th/th_dot
+            goalDt = goalTh/th_dot
 
             # Turn Left
             control = Control(-speed, speed, dt)
             footprint = self.GenerateFootprintFromControl(start_config, control)
             self.actions[idx].append(Action(control, footprint))
 
+            goalControl = Control(-speed, speed, goalDt)
+            footprint = self.GenerateFootprintFromControl(start_config, goalControl)
+            self.goalActions[idx].append(Action(goalControl, footprint))
+
              # Turn Right
             control = Control(speed, -speed, dt)
             footprint = self.GenerateFootprintFromControl(start_config, control)
             self.actions[idx].append(Action(control, footprint))
 
+            goalControl = Control(speed, -speed, goalDt)
+            footprint = self.GenerateFootprintFromControl(start_config, goalControl)
+            self.goalActions[idx].append(Action(goalControl, footprint))
 
-    def GetSuccessors(self, node_id):
+    def GetSuccessors(self, node_id, dist_to_goal):
 
         successors = []
 
@@ -149,8 +172,14 @@ class SimpleEnvironment(object):
         
         gridCoord = self.discrete_env.NodeIdToGridCoord(node_id)
         config = self.discrete_env.NodeIdToConfiguration(node_id)
+        print "dist_to_goal = "
+        print dist_to_goal
+        if dist_to_goal < 10:
+            currActions = self.goalActions
+        else:
+            currActions = self.actions
 
-        for action in self.actions[gridCoord[2]]:
+        for action in currActions[gridCoord[2]]:
             # Footprint was based on 0,0,th config, so need to regenerate for current config
             footprint = self.GenerateFootprintFromControl(config, action.control) 
             successors.append(Action(action.control, footprint))
