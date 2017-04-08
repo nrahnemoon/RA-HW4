@@ -94,6 +94,7 @@ class GraspPlanner(object):
         task_manipulation = openravepy.interfaces.TaskManipulation(self.robot)
         task_manipulation.CloseFingers()
     
+<<<<<<< HEAD
     # order the grasps - call eval grasp on each, set the 'performance' index, and sort
     def order_grasps(self):
         self.grasps_ordered = self.grasps.copy() #you should change the order of self.grasps_ordered
@@ -215,3 +216,73 @@ class GraspPlanner(object):
                 time.sleep(delay)
             except openravepy.planning_error,e:
               print 'bad grasp!',e
+=======
+    def OrderGrasps(self):
+    	self.orderedGrasps = self.grasps.copy()
+
+    	# Define metrics (1. Minimum singular value, 2. Ratio of sminimum and maximum singular values, 3. Volume of convex hull)
+    	SVs = []
+    	Ratios = []
+    	Volumes =  []
+
+    	# Rate each grasp
+    	for grasp in orderedGrasps:
+    		rating = self.EvaluateGrasp(grasp)
+    		SVs.append(rating[0])
+    		Ratios.append(rating[1])
+    		Volumes.append(rating[2])
+
+    	# Normalize the minimum singular value ratings
+    	ll = min(SVs)
+    	ul = max(SVs)
+    	SVsNorm = [ (ele - ll)/(ul - ll) for ele in SVs ]
+
+    	# Normalize the volume ratings
+    	ll = min(Volumes)
+    	ul = max(Volumes)
+    	VolumesNorm = [ (ele - ll)/(ul - ll) for ele in Volumes ]
+
+    	# Compute total ratings for the grasps
+    	for i, grasp in self.orderedGrasps:
+    		grasp[self.graspindices.get('performance')[0]] = SVsNorm[i] + Ratios[i] + VolumesNorm[i]
+
+		# Sort in descending order of performance
+		order = numpy.argsort(self.orderedGrasps[:, self.graspindices.get('performance')[0]])
+        order = order[::-1]
+        self.orderedGrasps = self.orderedGrasps[order]
+
+	def EvaluateGrasp(self, grasp):
+		with self.robot:
+			try:
+				contacts, finalconfig, mindist, volume = self.gmodel.testGrasp(grasp = grasp, translate = True, forceclosure = False)
+				bottlePos = self.gmodel.target.GetTransform()[0:3, 3]
+
+				# Define the wrench matrix
+				W = []
+
+				for ele in contacts:
+					position	= ele[0:3] - bottlePos
+					direction 	= -ele[3:]
+					direction = numpy.array(direction)
+					W_temp = numpy.array([direction, numpy.cross(position, direction)])
+					W = numpy.append(W, W_temp)
+
+				W = W.reshape(len(W)/6, 6)
+				W = W.transpose()
+
+				# Find the 
+				try:
+					u, s, v = numpy.linalg.svd(W)
+					min_sv = min(s)
+					max_sv = max(s)
+					ratio = min_sv / max_sv
+					volume = math.sqrt(abs(numpy.linalg.det(numpy.dot(W, numpy.transpose(W)))))
+					rating = (min_sv, ratio, volume)
+					return rating
+
+				except numpy.linalg.linalg.LinAlgError:
+					return (0.0, 0.0, 0.0)
+
+			except openravepy.planning_error:
+				return (0.0, 0.0, 0.0)
+>>>>>>> d71d615d7fb91c0abec7560ded21d65f8d3933ab
